@@ -1,0 +1,57 @@
+.live-dot.offline{background:var(--red);box-shadow:0 0 0 3px #b56e6920}
+.room-status-strip{margin:0 0 12px;padding:13px 15px;border:1px solid var(--line);background:#12141acc}
+.room-status-heading,.room-status-players,.room-player-chip{display:flex;align-items:center}
+.room-status-heading{gap:9px;color:#aaa;font:9px var(--mono);letter-spacing:.08em}
+.room-status-heading b{color:var(--green);font-weight:500}
+.room-status-heading>span:last-child{margin-left:auto;color:#777}
+.room-status-players{gap:10px;flex-wrap:wrap;margin-top:11px}
+.room-player-chip{gap:8px;min-width:130px;padding:6px 9px;background:#ffffff06;border:1px solid #ffffff0d}
+.room-player-chip .avatar{width:26px;height:26px}
+.room-player-chip>span{display:grid;gap:2px;min-width:0}
+.room-player-chip b{max-width:145px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#e4e0d8;font-size:11px}
+.room-player-chip small{color:#8f8b82;font:8px var(--mono);letter-spacing:.08em}
+.room-waiting{color:#97938b;font-size:11px}
+.room-status-strip>p{margin:10px 0 0;color:#e2a29b;font-size:12px}
+.room-status-strip.has-error{border-color:#754a47;background:#211617}
+.room-status-strip.has-error .room-status-heading b{color:#df9a91}
+.objective-bar{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:0 0 29px;padding:15px 17px;border-left:2px solid var(--gold);background:linear-gradient(90deg,#c9a66b12,transparent 90%)}
+.objective-bar>div:first-child{display:grid;gap:5px}
+.objective-bar span{color:var(--gold);font:9px var(--mono);letter-spacing:.12em}
+.objective-bar b{color:#e5e0d7;font-size:13px;font-weight:500;line-height:1.55}
+.objective-mark{display:grid;place-items:center;flex:0 0 29px;width:29px;height:29px;border:1px solid #c9a66b55;color:var(--gold)}
+.tutorial-panel{margin:25px 0 20px;padding:19px;border:1px solid #514735;background:linear-gradient(135deg,#191814,#12141a 72%);text-align:left}
+.tutorial-title{display:flex;align-items:center;gap:11px;color:var(--gold2)}
+.tutorial-title>span{display:grid;gap:4px}
+.tutorial-title small{color:var(--gold);font:9px var(--mono);letter-spacing:.13em}
+.tutorial-title b{color:#eee8dd;font-family:var(--serif);font-size:20px;font-weight:400}
+.tutorial-panel ol{display:grid;gap:12px;margin:19px 0 16px;padding-left:23px;color:#aaa9a5;font-size:12px;line-height:1.7}
+.tutorial-panel li{padding-left:4px}
+.tutorial-panel li::marker{color:var(--gold);font-family:var(--mono)}
+.tutorial-panel li b{color:#e7dfd1;font-weight:600}
+.tutorial-note{display:flex;gap:9px;align-items:flex-start;padding:11px 12px;border-top:1px solid var(--line);color:#c3b9a7;font-size:11px;line-height:1.6}
+.tutorial-note svg{flex:0 0 auto;margin-top:2px;color:var(--gold)}
+.timeline-error{margin-top:12px}
+.mobile-menu-button,.mobile-sidebar-header{display:none}
+@media(max-width:700px){
+  .mobile-menu-button{display:grid;place-items:center;flex:0 0 36px;width:36px;height:36px;padding:0}
+  .topbar{gap:10px}
+  .topbar .brand{gap:7px;font-size:9px}
+  .topbar .brand-mark{width:24px;height:24px}
+  .top-center{margin-left:auto;white-space:nowrap}
+  .sidebar.mobile-open{display:block;position:fixed;z-index:31;inset:0 auto 0 0;width:min(330px,88vw);height:100dvh;overflow-y:auto;padding:17px 19px 24px;background:#101116;border-right:1px solid var(--line);box-shadow:18px 0 55px #000b;animation:drawer-enter .18s ease-out}
+  .mobile-sidebar-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;padding-bottom:14px;border-bottom:1px solid var(--line);color:var(--gold);font:10px var(--mono);letter-spacing:.13em}
+  .mobile-sidebar-header .icon-button{display:grid;place-items:center;width:34px;height:34px;padding:0}
+  .sidebar-backdrop{position:fixed;z-index:30;inset:0;width:100%;height:100%;padding:0;border:0;background:#000a;backdrop-filter:blur(2px)}
+  .sidebar.mobile-open .nav-list button{min-height:44px}
+  .sidebar.mobile-open .sidebar-bottom{margin-top:28px}
+  .room-status-strip{padding:11px;margin-bottom:10px}
+  .room-status-heading{font-size:8px}
+  .room-status-players{align-items:stretch}
+  .room-player-chip{flex:1 1 125px}
+  .objective-bar{margin-bottom:22px;padding:12px 13px}
+  .objective-bar b{font-size:12px}
+  .tutorial-panel{padding:15px;margin-top:20px}
+  .tutorial-title b{font-size:18px}
+  .tutorial-panel ol{font-size:12px;padding-left:20px}
+}
+@keyframes drawer-enter{from{transform:translateX(-14px);opacity:.7}to{transform:translateX(0);opacity:1}}

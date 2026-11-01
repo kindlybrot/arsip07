@@ -54,9 +54,19 @@ If Supabase environment variables are absent, the app opens in preview mode. It 
 
 ### Multiplayer behavior
 
-The app uses a private Supabase Realtime channel named `arsip-room:<ROOMCODE>`. Both players join the channel, track presence, and broadcast the shared game state. The first player is the host; the second player is the witness. A late joiner receives the host's current state.
+The app uses a Supabase Realtime channel named `arsip-room:<ROOMCODE>`. Both players join the channel and track presence. The room creator is the Analyst and state host; the joiner is the Witness. The host processes player actions and broadcasts numbered state snapshots so late joiners receive current progress. The two-player limit is checked by the clients, not enforced by a trusted server.
 
-This is a playable prototype architecture, not a hardened public multiplayer service. Before public launch, add:
+### Playtest checklist
+
+1. Open the app in two separate browsers or devices using the same deployed URL and Supabase project.
+2. Create a room in one browser. Wait for `ROOM ONLINE`, copy the six-character room code, and confirm the player count is `1/2`.
+3. Join from the second browser. Confirm both names and the Analyst/Witness roles appear on both screens before starting.
+4. Start from the Analyst screen. Open at least four evidence files across both players; confirm the count updates on both screens.
+5. Continue to the witness interpretation, then put the timeline in order: phone call, arrival, rain, tape recording.
+6. Submit each of the three theories in separate runs to inspect the different endings. The `memory` theory is the complete conclusion.
+7. Close one browser and confirm the remaining screen returns to `1/2`. Reconnection recovery and saved sessions are not implemented yet.
+
+This is a playable prototype, not a hardened public multiplayer service. Room codes are not authentication; anyone who knows a code may attempt to join. State validation and room-capacity checks run in the clients and can be bypassed. Before public launch, add:
 - authenticated room membership and server-side room authorization;
 - server-side validation of puzzle answers and state transitions;
 - durable room snapshots and reconnect recovery;

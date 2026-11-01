@@ -25,6 +25,8 @@ type Store = {
   players: Player[]
   online: boolean
   connected: boolean
+  isHost: boolean
+  revision: number
   channel: ReturnType<NonNullable<typeof supabase>['channel']> | null
   error: string
   setError: (s: string) => void
@@ -47,60 +49,105 @@ function playerId() {
 
 const roomCode = () => Math.random().toString(36).slice(2, 8).toUpperCase()
 
+function mergeGame(current: GameState, patch: Partial<GameState>): GameState {
+  return {
+    ...current,
+    ...patch,
+    stage: Math.max(current.stage, patch.stage ?? current.stage),
+    evidenceOpened: [...new Set([...current.evidenceOpened, ...(patch.evidenceOpened ?? [])])],
+    timelineSolved: current.timelineSolved || Boolean(patch.timelineSolved),
+    hints: Math.max(current.hints, patch.hints ?? current.hints),
+    started: current.started || Boolean(patch.started),
+    ended: current.ended || Boolean(patch.ended),
+    witnessChoice: current.witnessChoice || patch.witnessChoice || '',
+  }
+}
+
 export const useGame = create<Store>((set, get) => ({
-  game: initial, room: '', player: null, players: [], online: Boolean(supabase), connected: false, channel: null, error: '',
+  game: initial, room: '', player: null, players: [], online: Boolean(supabase), connected: false, isHost: false, revision: 0, channel: null, error: '',
   setError: (error) => set({ error }),
   connectRoom: async (requestedRoom, name, createRoom) => {
     if (!supabase) {
       const code = createRoom ? roomCode() : requestedRoom.trim().toUpperCase()
-      set({ room: code, player: { id: playerId(), name, role: 'analyst' }, players: [{ id: 'local', name, role: 'analyst' }], connected: true, error: 'Mode preview aktif: isi Supabase URL dan anon key untuk multiplayer online.' })
+      const localPlayer = { id: playerId(), name, role: 'analyst' as const }
+      set({ room: code, player: localPlayer, players: [{ ...localPlayer, id: 'local' }], connected: true, isHost: true, revision: 0, game: initial, error: 'Mode preview aktif: isi Supabase URL dan publishable key untuk multiplayer online.' })
       return
     }
     const code = createRoom ? roomCode() : requestedRoom.trim().toUpperCase()
     const id = playerId()
+    const role: PlayerRole = createRoom ? 'analyst' : 'witness'
     const channel = supabase.channel(`arsip-room:${code}`, {
       config: { broadcast: { self: false }, presence: { key: id } },
     })
-    const player: Player = { id, name, role: 'analyst' }
-    set({ room: code, player, channel, connected: false, error: '' })
+    const player: Player = { id, name, role }
+    let requestedState = false
+    set({ room: code, player, players: [], channel, connected: false, isHost: createRoom, revision: 0, game: initial, error: '' })
 
     channel.on('presence', { event: 'sync' }, () => {
+      if (get().channel !== channel) return
       const state = channel.presenceState<Player>()
       const peers = Object.values(state).flat()
       const unique = [...new Map(peers.map(p => [p.id, p])).values()]
-      const ordered = unique.sort((a, b) => a.id.localeCompare(b.id))
-      const me = ordered.findIndex(p => p.id === id)
-      const assigned = ordered.map((p, i) => ({ ...p, role: (i === 0 ? 'analyst' : 'witness') as PlayerRole }))
-      set({ players: assigned, player: assigned.find(p => p.id === id) ?? { ...player, role: me === 0 ? 'analyst' : 'witness' } })
-      if (assigned.length > 1) {
-        const host = assigned[0]
-        if (host.id !== id) channel.send({ type: 'broadcast', event: 'request_state', payload: { from: id } })
+      const assigned = unique.sort((a, b) => a.role === b.role ? a.id.localeCompare(b.id) : a.role === 'analyst' ? -1 : 1)
+      if (assigned.length > 2 && !createRoom) {
+        if (supabase) supabase.removeChannel(channel)
+        set({ game: initial, room: '', player: null, players: [], connected: false, isHost: false, revision: 0, channel: null, error: 'Room sudah penuh. Satu room hanya dapat diisi dua pemain.' })
+        return
+      }
+      set({ players: assigned.slice(0, 2), player: assigned.find(p => p.id === id) ?? player, error: assigned.length > 2 ? 'Room penuh. Pemain ketiga tidak dapat bergabung.' : '' })
+      if (!createRoom && assigned.some(p => p.role === 'analyst') && !requestedState) {
+        requestedState = true
+        channel.send({ type: 'broadcast', event: 'request_state', payload: { from: id } })
       }
     })
     channel.on('broadcast', { event: 'game_state' }, ({ payload }) => {
-      if (payload?.state) set({ game: payload.state as GameState })
+      if (get().channel !== channel || createRoom || !payload?.state) return
+      const incomingRevision = Number(payload.revision) || 0
+      if (incomingRevision >= get().revision) set({ game: payload.state as GameState, revision: incomingRevision })
     })
     channel.on('broadcast', { event: 'request_state' }, () => {
-      if (get().player?.role === 'analyst') channel.send({ type: 'broadcast', event: 'game_state', payload: { state: get().game } })
+      if (get().channel === channel && createRoom) {
+        channel.send({ type: 'broadcast', event: 'game_state', payload: { state: get().game, revision: get().revision } })
+      }
+    })
+    channel.on('broadcast', { event: 'game_action' }, ({ payload }) => {
+      if (get().channel !== channel || !createRoom || !payload?.patch) return
+      const next = mergeGame(get().game, payload.patch as Partial<GameState>)
+      const revision = get().revision + 1
+      set({ game: next, revision })
+      channel.send({ type: 'broadcast', event: 'game_state', payload: { state: next, revision } })
     })
     channel.subscribe(async (status) => {
       if (status === 'SUBSCRIBED') {
-        await channel.track({ id, name, role: 'analyst', joinedAt: new Date().toISOString() })
-        set({ connected: true })
+        try {
+          await channel.track({ ...player, joinedAt: new Date().toISOString() })
+          if (get().channel === channel) set({ connected: true })
+        } catch {
+          if (get().channel === channel) set({ error: 'Gagal mendaftarkan pemain ke room. Coba muat ulang halaman.' })
+        }
       } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-        set({ error: 'Koneksi room gagal. Periksa Supabase URL, anon key, dan koneksi internet.' })
+        if (get().channel === channel) set({ connected: false, error: 'Koneksi room gagal. Periksa URL dan key Supabase, lalu coba gabung lagi.' })
       }
     })
   },
   updateGame: (patch) => {
-    const next = { ...get().game, ...patch }
-    set({ game: next })
-    const { channel, connected } = get()
-    if (channel && connected) channel.send({ type: 'broadcast', event: 'game_state', payload: { state: next } })
+    const { channel, connected, isHost } = get()
+    if (!channel || !connected) {
+        set({ game: mergeGame(get().game, patch) })
+      return
+    }
+    if (!isHost) {
+      channel.send({ type: 'broadcast', event: 'game_action', payload: { patch } })
+      return
+    }
+    const next = mergeGame(get().game, patch)
+    const revision = get().revision + 1
+    set({ game: next, revision })
+    channel.send({ type: 'broadcast', event: 'game_state', payload: { state: next, revision } })
   },
   leave: () => {
     const { channel } = get()
     if (channel && supabase) supabase.removeChannel(channel)
-    set({ game: initial, room: '', player: null, players: [], connected: false, channel: null, error: '' })
+    set({ game: initial, room: '', player: null, players: [], connected: false, isHost: false, revision: 0, channel: null, error: '' })
   },
 }))
